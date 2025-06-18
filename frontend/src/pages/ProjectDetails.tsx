@@ -30,10 +30,34 @@ interface Task {
   name: string
   description: string
   status: 'todo' | 'in_progress' | 'completed'
+  priority: 'Low' | 'Medium' | 'High' | 'Critical'
   dueDate: string
   order: number
   parentTask: string | null
   subTasks: Task[]
+  assignee?: {
+    _id: string
+    name: string
+    email: string
+  }
+  tags: string[]
+  estimatedHours?: number
+  actualHours?: number
+  comments: Array<{
+    _id: string
+    user: {
+      _id: string
+      name: string
+    }
+    content: string
+    createdAt: string
+  }>
+}
+
+interface User {
+  _id: string
+  name: string
+  email: string
 }
 
 export default function ProjectDetails() {
@@ -47,9 +71,12 @@ export default function ProjectDetails() {
     const savedFilters = localStorage.getItem(`task-filters-${projectId}`)
     return savedFilters ? JSON.parse(savedFilters) : {
       status: '',
+      priority: '',
       startDate: '',
       endDate: '',
       search: '',
+      assigneeId: '',
+      tags: '',
     }
   })
   const [filterInputs, setFilterInputs] = useState(filters)
@@ -67,6 +94,15 @@ export default function ProjectDetails() {
     queryKey: ['tasks', projectId],
     queryFn: async () => {
       const response = await axios.get(`/api/projects/${projectId}/tasks`)
+      return response.data
+    },
+  })
+
+  // Fetch users for assignee filter
+  const { data: users } = useQuery<User[]>({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const response = await axios.get('/api/users')
       return response.data
     },
   })
@@ -119,18 +155,40 @@ export default function ProjectDetails() {
     const toDateString = (date: string | Date | undefined) => date ? new Date(date).toISOString().slice(0, 10) : null;
     setFilteredTasks(
       (tasks ?? []).filter((task) => {
+        // Status filter
         if (filters.status && task.status !== filters.status) return false;
+        
+        // Priority filter
+        if (filters.priority && task.priority !== filters.priority) return false;
+        
+        // Date range filter
         const taskDateStr = toDateString(task.dueDate);
         const startDateStr = filters.startDate;
         const endDateStr = filters.endDate;
         if (startDateStr && taskDateStr && taskDateStr < startDateStr) return false;
         if (endDateStr && taskDateStr && taskDateStr > endDateStr) return false;
+        
+        // Assignee filter
+        if (filters.assigneeId && (!task.assignee || task.assignee._id !== filters.assigneeId)) return false;
+        
+        // Tags filter
+        if (filters.tags) {
+          const filterTags = filters.tags.toLowerCase().split(',').map(tag => tag.trim());
+          const taskTags = task.tags.map(tag => tag.toLowerCase());
+          const hasMatchingTag = filterTags.some(filterTag => 
+            taskTags.some(taskTag => taskTag.includes(filterTag))
+          );
+          if (!hasMatchingTag) return false;
+        }
+        
+        // Search filter
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
           const matchesName = task.name.toLowerCase().includes(searchLower);
           const matchesDescription = task.description.toLowerCase().includes(searchLower);
           if (!matchesName && !matchesDescription) return false;
         }
+        
         return true;
       })
     );
@@ -139,38 +197,46 @@ export default function ProjectDetails() {
   // Debug log for filtering
   console.log('DEBUG filteredTasks:', filteredTasks, 'filters:', filters, 'tasks:', tasks);
 
-  // Helper to normalize status
-  const normalizeStatus = (status: string) => status.toLowerCase().replace(/\s+/g, '_');
+  const handleTaskDrop = (taskId: string, newStatus: Task['status'], newOrder: number) => {
+    updateTaskStatus.mutate({
+      taskId,
+      status: newStatus,
+      order: newOrder,
+    })
+  }
+
+  const normalizeStatus = (status: string) => {
+    return status.toLowerCase().replace(' ', '_')
+  }
 
   if (isLoadingProject || isLoadingTasks) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="text-center text-gray-500">Loading...</div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-gray-500">Loading project...</div>
       </div>
     )
   }
 
   if (!project) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="text-center text-gray-500">Project not found</div>
+      <div className="text-center">
+        <h1 className="text-2xl font-semibold text-gray-900">Project not found</h1>
+        <p className="mt-2 text-gray-500">The project you're looking for doesn't exist.</p>
       </div>
     )
   }
 
-  const handleTaskDrop = (taskId: string, status: Task['status'], order: number) => {
-    updateTaskStatus.mutate({ taskId, status, order })
-  }
-
   return (
     <div className="space-y-8">
+      {/* Project Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {project.name}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">{project.description}</p>
+          <h1 className="text-2xl font-semibold text-gray-900">{project.name}</h1>
+          {project.description && (
+            <p className="mt-1 text-gray-500">{project.description}</p>
+          )}
         </div>
+
         <div className="flex items-center gap-x-3">
           {canEditProject && (
             <button
@@ -215,6 +281,7 @@ export default function ProjectDetails() {
         <span className="badge badge-secondary">Your Role: {project ? project.userRole : '-'}</span>
       </div>
 
+      {/* Enhanced Filter Section */}
       <div className="mb-6">
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Filter Tasks</h3>
@@ -230,6 +297,35 @@ export default function ProjectDetails() {
                 <option value="todo">To Do</option>
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+              <select
+                value={filterInputs.priority}
+                onChange={e => setFilterInputs({ ...filterInputs, priority: e.target.value })}
+                className="input"
+              >
+                <option value="">All Priorities</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+              <select
+                value={filterInputs.assigneeId}
+                onChange={e => setFilterInputs({ ...filterInputs, assigneeId: e.target.value })}
+                className="input"
+              >
+                <option value="">All Assignees</option>
+                {users?.map((user) => (
+                  <option key={user._id} value={user._id}>
+                    {user.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -251,6 +347,16 @@ export default function ProjectDetails() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+              <input
+                type="text"
+                placeholder="Filter by tags..."
+                value={filterInputs.tags}
+                onChange={e => setFilterInputs({ ...filterInputs, tags: e.target.value })}
+                className="input"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
               <input
                 type="text"
@@ -265,8 +371,8 @@ export default function ProjectDetails() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  setFilterInputs({ status: '', startDate: '', endDate: '', search: '' })
-                  setFilters({ status: '', startDate: '', endDate: '', search: '' })
+                  setFilterInputs({ status: '', priority: '', startDate: '', endDate: '', search: '', assigneeId: '', tags: '' })
+                  setFilters({ status: '', priority: '', startDate: '', endDate: '', search: '', assigneeId: '', tags: '' })
                 }}
                 className="btn btn-secondary"
               >
@@ -286,6 +392,7 @@ export default function ProjectDetails() {
         </div>
       </div>
 
+      {/* Task Lists */}
       <DndProvider backend={HTML5Backend}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <TaskList

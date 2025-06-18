@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
 import Tasks from './pages/Tasks'
+import Users from './pages/Users'
 import ProjectDetails from './pages/ProjectDetails'
 import Profile from './pages/Profile'
 
@@ -31,6 +32,7 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="projects" element={<Projects />} />
         <Route path="tasks" element={<Tasks />} />
+        <Route path="users" element={<Users />} />
         <Route path="projects/:projectId" element={<ProjectDetails />} />
         <Route path="profile" element={<Profile />} />
       </Route>

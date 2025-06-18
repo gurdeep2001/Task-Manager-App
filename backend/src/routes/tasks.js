@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { Task, Project } = require('../models');
+const { Task, Project, User } = require('../models');
 const { auth, checkProjectAccess } = require('../middleware/auth');
 
 const router = express.Router();
@@ -23,6 +23,8 @@ router.get('/', auth, async (req, res) => {
       project: { $in: projectIds }
     })
     .populate('project', 'name')
+    .populate('assignee', 'name email')
+    .populate('comments.user', 'name')
     .sort({ createdAt: -1 });
 
     res.json(tasks);
@@ -36,9 +38,14 @@ router.post('/:projectId/tasks', auth, checkProjectAccess('Editor'), [
   body('name').trim().notEmpty().withMessage('Task name is required'),
   body('description').optional().trim(),
   body('status').optional().isIn(['To Do', 'In Progress', 'Done']),
+  body('priority').optional().isIn(['Low', 'Medium', 'High', 'Critical']),
   body('dueDate').optional().isISO8601().toDate(),
   body('parentTaskId').optional().isMongoId(),
-  body('order').optional().isInt()
+  body('assigneeId').optional().isMongoId(),
+  body('order').optional().isInt(),
+  body('tags').optional().isArray(),
+  body('estimatedHours').optional().isFloat({ min: 0 }),
+  body('actualHours').optional().isFloat({ min: 0 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -47,7 +54,12 @@ router.post('/:projectId/tasks', auth, checkProjectAccess('Editor'), [
     }
 
     const { projectId } = req.params;
-    const { parentTaskId } = req.body;
+    const { 
+      parentTaskId, 
+      assigneeId, 
+      tags,
+      ...taskData 
+    } = req.body;
 
     // Verify parent task exists and belongs to the same project
     if (parentTaskId) {
@@ -61,13 +73,28 @@ router.post('/:projectId/tasks', auth, checkProjectAccess('Editor'), [
       }
     }
 
+    // Verify assignee exists
+    if (assigneeId) {
+      const assignee = await User.findById(assigneeId);
+      if (!assignee) {
+        return res.status(400).json({ error: 'Assignee not found' });
+      }
+    }
+
     const task = await Task.create({
-      ...req.body,
+      ...taskData,
       project: projectId,
-      parentTask: parentTaskId
+      parentTask: parentTaskId,
+      assignee: assigneeId,
+      tags: tags || []
     });
 
-    res.status(201).json(task);
+    // Populate the created task
+    const populatedTask = await Task.findById(task._id)
+      .populate('assignee', 'name email')
+      .populate('comments.user', 'name');
+
+    res.status(201).json(populatedTask);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -79,9 +106,12 @@ router.get('/:projectId/tasks', auth, checkProjectAccess('Viewer'), async (req, 
     const { projectId } = req.params;
     const {
       status,
+      priority,
       startDate,
       endDate,
       search,
+      assigneeId,
+      tags,
       parentTaskId = null // Default to root tasks
     } = req.query;
 
@@ -90,6 +120,11 @@ router.get('/:projectId/tasks', auth, checkProjectAccess('Viewer'), async (req, 
     // Filter by status
     if (status) {
       query.status = status;
+    }
+
+    // Filter by priority
+    if (priority) {
+      query.priority = priority;
     }
 
     // Filter by date range
@@ -101,6 +136,17 @@ router.get('/:projectId/tasks', auth, checkProjectAccess('Viewer'), async (req, 
       if (endDate) {
         query.dueDate.$lte = new Date(endDate);
       }
+    }
+
+    // Filter by assignee
+    if (assigneeId) {
+      query.assignee = assigneeId;
+    }
+
+    // Filter by tags
+    if (tags) {
+      const tagArray = Array.isArray(tags) ? tags : [tags];
+      query.tags = { $in: tagArray };
     }
 
     // Filter by parent task
@@ -119,11 +165,21 @@ router.get('/:projectId/tasks', auth, checkProjectAccess('Viewer'), async (req, 
     }
 
     const tasks = await Task.find(query)
+      .populate('assignee', 'name email')
+      .populate('comments.user', 'name')
       .populate({
         path: 'subTasks',
-        populate: {
-          path: 'subTasks'
-        }
+        populate: [
+          { path: 'assignee', select: 'name email' },
+          { path: 'comments.user', select: 'name' },
+          {
+            path: 'subTasks',
+            populate: [
+              { path: 'assignee', select: 'name email' },
+              { path: 'comments.user', select: 'name' }
+            ]
+          }
+        ]
       })
       .sort({ order: 1, 'subTasks.order': 1, 'subTasks.subTasks.order': 1 });
 
@@ -144,11 +200,22 @@ router.get('/:projectId/tasks/:taskId', auth, checkProjectAccess('Viewer'), asyn
     const task = await Task.findOne({
       _id: taskId,
       project: projectId
-    }).populate({
+    })
+    .populate('assignee', 'name email')
+    .populate('comments.user', 'name')
+    .populate({
       path: 'subTasks',
-      populate: {
-        path: 'subTasks'
-      }
+      populate: [
+        { path: 'assignee', select: 'name email' },
+        { path: 'comments.user', select: 'name' },
+        {
+          path: 'subTasks',
+          populate: [
+            { path: 'assignee', select: 'name email' },
+            { path: 'comments.user', select: 'name' }
+          ]
+        }
+      ]
     });
 
     if (!task) {
@@ -166,9 +233,14 @@ router.patch('/:projectId/tasks/:taskId', auth, checkProjectAccess('Editor'), [
   body('name').optional().trim().notEmpty().withMessage('Task name cannot be empty'),
   body('description').optional().trim(),
   body('status').optional().isIn(['To Do', 'In Progress', 'Done']),
+  body('priority').optional().isIn(['Low', 'Medium', 'High', 'Critical']),
   body('dueDate').optional().isISO8601().toDate(),
   body('parentTaskId').optional().isMongoId(),
-  body('order').optional().isInt()
+  body('assigneeId').optional().isMongoId(),
+  body('order').optional().isInt(),
+  body('tags').optional().isArray(),
+  body('estimatedHours').optional().isFloat({ min: 0 }),
+  body('actualHours').optional().isFloat({ min: 0 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -177,7 +249,12 @@ router.patch('/:projectId/tasks/:taskId', auth, checkProjectAccess('Editor'), [
     }
 
     const { projectId, taskId } = req.params;
-    const { parentTaskId } = req.body;
+    const { 
+      parentTaskId, 
+      assigneeId, 
+      tags,
+      ...updateData 
+    } = req.body;
 
     const task = await Task.findOne({
       _id: taskId,
@@ -214,25 +291,79 @@ router.patch('/:projectId/tasks/:taskId', auth, checkProjectAccess('Editor'), [
       }
     }
 
+    // Verify assignee exists
+    if (assigneeId) {
+      const assignee = await User.findById(assigneeId);
+      if (!assignee) {
+        return res.status(400).json({ error: 'Assignee not found' });
+      }
+    }
+
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['name', 'description', 'status', 'dueDate', 'parentTaskId', 'order'];
+    const allowedUpdates = ['name', 'description', 'status', 'priority', 'dueDate', 'parentTaskId', 'assigneeId', 'order', 'tags', 'estimatedHours', 'actualHours'];
     const isValidOperation = updates.every(update => allowedUpdates.includes(update));
 
     if (!isValidOperation) {
       return res.status(400).json({ error: 'Invalid updates' });
     }
 
-    // Convert parentTaskId to parentTask for MongoDB
+    // Convert IDs to ObjectIds for MongoDB
     if (req.body.parentTaskId) {
-      req.body.parentTask = req.body.parentTaskId;
-      delete req.body.parentTaskId;
+      updateData.parentTask = req.body.parentTaskId;
+    }
+    if (req.body.assigneeId) {
+      updateData.assignee = req.body.assigneeId;
+    }
+    if (tags) {
+      updateData.tags = tags;
     }
 
     const updatedTask = await Task.findByIdAndUpdate(
       taskId,
-      { $set: req.body },
+      { $set: updateData },
       { new: true, runValidators: true }
-    );
+    )
+    .populate('assignee', 'name email')
+    .populate('comments.user', 'name');
+
+    res.json(updatedTask);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Add comment to task
+router.post('/:projectId/tasks/:taskId/comments', auth, checkProjectAccess('Viewer'), [
+  body('content').trim().notEmpty().withMessage('Comment content is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { projectId, taskId } = req.params;
+    const { content } = req.body;
+
+    const task = await Task.findOne({
+      _id: taskId,
+      project: projectId
+    });
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    task.comments.push({
+      user: req.user._id,
+      content
+    });
+
+    await task.save();
+
+    const updatedTask = await Task.findById(taskId)
+      .populate('assignee', 'name email')
+      .populate('comments.user', 'name');
 
     res.json(updatedTask);
   } catch (error) {

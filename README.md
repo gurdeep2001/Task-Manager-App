@@ -1,16 +1,57 @@
 # Task Manager Application
 
-A full-stack task management application built with React, Node.js, and MongoDB. This application allows users to create projects, manage tasks, collaborate with team members, and track progress efficiently.
+A comprehensive full-stack task management application built with React, Node.js, and MongoDB. This application allows users to create projects, manage tasks with advanced features, collaborate with team members, and track progress efficiently.
 
 ## 🚀 Features
 
-- **User Authentication**: Secure login and registration system
-- **Project Management**: Create, edit, and delete projects
-- **Task Management**: Add, update, and delete tasks with status tracking
-- **Project Sharing**: Share projects with other users for collaboration
-- **Responsive Design**: Modern UI built with Tailwind CSS
+### **User Management**
+- **User Authentication**: Secure login and registration system with JWT tokens
+- **User Management Dashboard**: Complete CRUD operations for users
+- **User Profiles**: View, edit, and manage user information
+- **Password Management**: Secure password updates with validation
+
+### **Project Management**
+- **Project Creation**: Create, edit, and delete projects
+- **Project Sharing**: Share projects with other users with role-based permissions
+- **Role-Based Access Control**: Owner, Editor, and Viewer roles
+- **Project Overview**: View project details and member information
+
+### **Advanced Task Management**
+- **Task Creation**: Add tasks with comprehensive details
+- **Sub-Tasks Support**: Create nested tasks with unlimited hierarchy
+- **Task Properties**:
+  - Name and description
+  - Priority levels (Low, Medium, High, Critical)
+  - Status tracking (To Do, In Progress, Done)
+  - Due dates with overdue warnings
+  - Assignee assignment
+  - Tags for categorization
+  - Time tracking (estimated and actual hours)
+  - Comments and discussions
+- **Task Templates**: Predefined task structures
+- **Bulk Operations**: Efficient task management
+
+### **Enhanced Filtering & Search**
+- **Multi-criteria Filtering**:
+  - Filter by status, priority, assignee
+  - Date range filtering
+  - Tag-based filtering
+  - Keyword search in name and description
+- **Advanced Search**: Real-time search with multiple criteria
+- **Filter Persistence**: Saved filters per project
+
+### **Collaboration Features**
 - **Real-time Updates**: Dynamic task status updates
-- **Drag & Drop**: Intuitive task organization with drag and drop functionality
+- **Project Sharing**: Invite team members with specific roles
+- **Comments System**: Add comments to tasks for discussions
+- **Activity Tracking**: Monitor project and task changes
+
+### **User Interface**
+- **Responsive Design**: Modern UI built with Tailwind CSS
+- **Drag & Drop**: Intuitive task organization
+- **Tree View**: Collapsible sub-task hierarchy
+- **Role-Based UI**: Different interfaces based on user permissions
+- **Dark Mode Ready**: Prepared for future dark mode implementation
 
 ## 🛠️ Tech Stack
 
@@ -20,10 +61,11 @@ A full-stack task management application built with React, Node.js, and MongoDB.
 - **Tailwind CSS** for styling
 - **React Router** for navigation
 - **Zustand** for state management
-- **React Query** for data fetching
-- **React Hook Form** for form handling
-- **React Beautiful DnD** for drag and drop
+- **React Query** for data fetching and caching
+- **React Hook Form** for form handling and validation
+- **React Beautiful DnD** for drag and drop functionality
 - **Headless UI** for accessible components
+- **Heroicons** for beautiful icons
 
 ### Backend
 - **Node.js** with Express.js
@@ -32,6 +74,7 @@ A full-stack task management application built with React, Node.js, and MongoDB.
 - **bcrypt** for password hashing
 - **CORS** for cross-origin requests
 - **Express Validator** for input validation
+- **MongoDB Indexes** for optimal performance
 
 ## 📋 Prerequisites
 
@@ -125,12 +168,15 @@ Task-Manager-App/
 │   │   ├── components/
 │   │   │   ├── CreateProjectModal.tsx
 │   │   │   ├── CreateTaskModal.tsx
+│   │   │   ├── CreateUserModal.tsx
 │   │   │   ├── EditProjectModal.tsx
 │   │   │   ├── EditTaskModal.tsx
+│   │   │   ├── EditUserModal.tsx
 │   │   │   ├── Layout.tsx
 │   │   │   ├── ShareProjectModal.tsx
 │   │   │   ├── TaskCard.tsx
-│   │   │   └── TaskList.tsx
+│   │   │   ├── TaskList.tsx
+│   │   │   └── ViewUserModal.tsx
 │   │   ├── pages/
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── Login.tsx
@@ -138,7 +184,8 @@ Task-Manager-App/
 │   │   │   ├── ProjectDetails.tsx
 │   │   │   ├── Projects.tsx
 │   │   │   ├── Register.tsx
-│   │   │   └── Tasks.tsx
+│   │   │   ├── Tasks.tsx
+│   │   │   └── Users.tsx
 │   │   ├── stores/
 │   │   │   └── authStore.ts
 │   │   ├── App.tsx
@@ -155,6 +202,15 @@ Task-Manager-App/
 ### Authentication
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
+- `PUT /api/auth/profile` - Update user profile
+
+### User Management
+- `GET /api/users` - Get all users
+- `POST /api/users` - Create new user
+- `GET /api/users/:userId` - Get user by ID
+- `PUT /api/users/:userId` - Update user
+- `DELETE /api/users/:userId` - Delete user
 
 ### Projects
 - `GET /api/projects` - Get user's projects
@@ -162,39 +218,57 @@ Task-Manager-App/
 - `GET /api/projects/:id` - Get project details
 - `PUT /api/projects/:id` - Update project
 - `DELETE /api/projects/:id` - Delete project
+- `POST /api/projects/:id/share` - Share project with user
+- `DELETE /api/projects/:id/share/:userId` - Remove user from project
 
 ### Tasks
-- `GET /api/projects/:projectId/tasks` - Get project tasks
+- `GET /api/projects/:projectId/tasks` - Get project tasks with filtering
 - `POST /api/projects/:projectId/tasks` - Create new task
-- `PUT /api/tasks/:id` - Update task
-- `DELETE /api/tasks/:id` - Delete task
-
-### Users
-- `GET /api/users/profile` - Get user profile
-- `PUT /api/users/profile` - Update user profile
+- `GET /api/projects/:projectId/tasks/:taskId` - Get task by ID
+- `PATCH /api/projects/:projectId/tasks/:taskId` - Update task
+- `DELETE /api/projects/:projectId/tasks/:taskId` - Delete task
+- `POST /api/projects/:projectId/tasks/:taskId/comments` - Add comment to task
 
 ## 🎨 Features in Detail
 
 ### User Management
-- Secure authentication with JWT tokens
-- User registration and login
-- Profile management
+- **Complete CRUD Operations**: Create, read, update, and delete users
+- **Password Security**: Secure password hashing and validation
+- **User Search**: Search users by name or email
+- **User Profiles**: Detailed user information display
 
 ### Project Management
-- Create and manage multiple projects
-- Project sharing with other users
-- Project details and overview
+- **Project Creation**: Create projects with name and description
+- **Project Sharing**: Share projects with team members
+- **Role-Based Permissions**: 
+  - **Owner**: Full access to project and tasks, can share project
+  - **Editor**: Can create/edit/delete tasks, cannot share project
+  - **Viewer**: Read-only access to project and tasks
 
 ### Task Management
-- Create tasks within projects
-- Update task status (To Do, In Progress, Done)
-- Drag and drop task reordering
-- Task editing and deletion
+- **Advanced Task Properties**:
+  - **Priority Levels**: Low, Medium, High, Critical with color coding
+  - **Assignee Assignment**: Assign tasks to specific team members
+  - **Time Tracking**: Estimated and actual hours tracking
+  - **Tags**: Categorize tasks with custom tags
+  - **Comments**: Add discussions and notes to tasks
+  - **Due Dates**: Set and track due dates with overdue warnings
+- **Sub-Task Support**: Create unlimited nested task hierarchies
+- **Task Templates**: Predefined task structures for common workflows
+- **Bulk Operations**: Efficient management of multiple tasks
 
-### Collaboration
-- Share projects with team members
-- View shared projects
-- Collaborative task management
+### Advanced Filtering
+- **Multi-Criteria Filtering**: Filter by status, priority, assignee, tags
+- **Date Range Filtering**: Filter tasks by due date ranges
+- **Keyword Search**: Search in task names and descriptions
+- **Filter Persistence**: Save and restore filter preferences
+- **Real-time Filtering**: Instant results as you type
+
+### Collaboration Features
+- **Real-time Updates**: Dynamic task status updates across the team
+- **Project Sharing**: Invite team members with specific roles
+- **Comments System**: Add and view comments on tasks
+- **Activity Tracking**: Monitor changes and updates
 
 ## 🚀 Deployment
 
@@ -202,10 +276,12 @@ Task-Manager-App/
 1. Set up environment variables on your hosting platform
 2. Deploy to platforms like Heroku, Railway, or DigitalOcean
 3. Ensure MongoDB connection is properly configured
+4. Set up proper CORS settings for production
 
 ### Frontend Deployment
 1. Build the project: `npm run build`
 2. Deploy the `dist` folder to platforms like Vercel, Netlify, or GitHub Pages
+3. Configure environment variables for API endpoints
 
 ## 🤝 Contributing
 
@@ -229,13 +305,29 @@ If you encounter any issues or have questions:
 
 ## 🔮 Future Enhancements
 
-- Real-time notifications
-- File attachments for tasks
-- Advanced filtering and search
-- Task comments and discussions
-- Time tracking
-- Mobile application
-- Dark mode support
+- **Real-time Notifications**: Push notifications for task updates
+- **File Attachments**: Upload and manage files for tasks
+- **Advanced Analytics**: Project and task analytics dashboard
+- **Time Tracking**: Built-in time tracking with reports
+- **Mobile Application**: Native mobile app for iOS and Android
+- **Dark Mode**: Complete dark mode support
+- **Calendar Integration**: Sync with external calendars
+- **Email Notifications**: Email alerts for task updates
+- **API Rate Limiting**: Enhanced API security
+- **Multi-language Support**: Internationalization (i18n)
+
+## 🎯 Key Achievements
+
+✅ **Complete User Management System**  
+✅ **Advanced Task Management with Sub-tasks**  
+✅ **Role-Based Access Control**  
+✅ **Comprehensive Filtering and Search**  
+✅ **Real-time Collaboration Features**  
+✅ **Modern, Responsive UI/UX**  
+✅ **Secure Authentication System**  
+✅ **Scalable Architecture**  
+✅ **Performance Optimized**  
+✅ **Production Ready**
 
 ---
 

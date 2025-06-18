@@ -7,12 +7,15 @@ import {
   HomeIcon,
   FolderIcon,
   UserIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '../stores/authStore'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
+  { name: 'Tasks', href: '/tasks', icon: Bars3Icon },
+  { name: 'Users', href: '/users', icon: UsersIcon },
   { name: 'Profile', href: '/profile', icon: UserIcon },
 ]
 
