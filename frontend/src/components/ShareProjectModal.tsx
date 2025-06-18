@@ -1,7 +1,9 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import axios from 'axios'
+import { useAuthStore } from '../stores/authStore'
 
 interface ShareProjectModalProps {
   isOpen: boolean
@@ -21,6 +23,7 @@ type Role = typeof roles[number]
 
 export default function ShareProjectModal({ isOpen, onClose, projectId }: ShareProjectModalProps) {
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<Role>('Viewer')
   const [error, setError] = useState('')
@@ -36,14 +39,26 @@ export default function ShareProjectModal({ isOpen, onClose, projectId }: ShareP
   })
 
   // Fetch current project sharing info
-  const { data: sharedWith, refetch } = useQuery({
+  const { data: projectData, refetch } = useQuery({
     queryKey: ['projectShare', projectId],
     queryFn: async () => {
       const response = await axios.get(`/api/projects/${projectId}`)
-      return response.data.sharedWith || []
+      return response.data
     },
     enabled: isOpen,
   })
+
+  const sharedWith = projectData?.sharedWith || []
+
+  // Filter out users who are already shared and the current user
+  const availableUsers = users?.filter(userItem => {
+    // Exclude current user
+    if (userItem._id === user?.id) return false
+    
+    // Exclude users already shared with this project
+    const isAlreadyShared = sharedWith.some((sw: any) => sw.user._id === userItem._id)
+    return !isAlreadyShared
+  }) || []
 
   const shareProject = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: Role }) => {
@@ -51,6 +66,7 @@ export default function ShareProjectModal({ isOpen, onClose, projectId }: ShareP
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projectShare', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
       refetch()
       setSelectedUserId('')
       setSelectedRole('Viewer')
@@ -67,6 +83,7 @@ export default function ShareProjectModal({ isOpen, onClose, projectId }: ShareP
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projectShare', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
       refetch()
     },
   })
@@ -110,13 +127,11 @@ export default function ShareProjectModal({ isOpen, onClose, projectId }: ShareP
                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500"
+                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                     onClick={onClose}
                   >
                     <span className="sr-only">Close</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
                 <div className="sm:flex sm:items-start">
@@ -144,12 +159,17 @@ export default function ShareProjectModal({ isOpen, onClose, projectId }: ShareP
                             onChange={e => setSelectedUserId(e.target.value)}
                           >
                             <option value="">Select a user</option>
-                            {users?.map(user => (
+                            {availableUsers.map(user => (
                               <option key={user._id} value={user._id}>
                                 {user.name} ({user.email})
                               </option>
                             ))}
                           </select>
+                          {availableUsers.length === 0 && (
+                            <p className="mt-1 text-sm text-gray-500">
+                              All users are already shared with this project or you are the only user.
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700">Role</label>
@@ -169,7 +189,7 @@ export default function ShareProjectModal({ isOpen, onClose, projectId }: ShareP
                         <button
                           type="submit"
                           className="btn btn-primary mt-2"
-                          disabled={shareProject.isPending}
+                          disabled={shareProject.isPending || availableUsers.length === 0}
                         >
                           {shareProject.isPending ? 'Sharing...' : 'Share'}
                         </button>

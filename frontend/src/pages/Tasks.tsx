@@ -6,12 +6,21 @@ interface Task {
   _id: string
   name: string
   description: string
-  status: 'todo' | 'in_progress' | 'completed'
+  status: 'To Do' | 'In Progress' | 'Done'
+  priority: 'Low' | 'Medium' | 'High' | 'Critical'
   dueDate: string
+  assignee?: {
+    _id: string
+    name: string
+    email: string
+  }
   project: {
     _id: string
     name: string
   }
+  tags: string[]
+  estimatedHours?: number
+  actualHours?: number
   createdAt: string
 }
 
@@ -26,17 +35,28 @@ export default function Tasks() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'Done':
         return 'badge-success'
-      case 'in_progress':
+      case 'In Progress':
         return 'badge-warning'
+      case 'To Do':
       default:
-        return 'badge-danger'
+        return 'badge-secondary'
     }
   }
 
-  const getStatusText = (status: string) => {
-    return status.replace('_', ' ')
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'Critical':
+        return 'badge-error'
+      case 'High':
+        return 'badge-warning'
+      case 'Medium':
+        return 'badge-info'
+      case 'Low':
+      default:
+        return 'badge-success'
+    }
   }
 
   return (
@@ -58,34 +78,71 @@ export default function Tasks() {
         <div className="space-y-4">
           {tasks?.map((task) => (
             <div key={task._id} className="card">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {task.name}
-                  </h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {task.name}
+                    </h3>
+                    <span className={`badge ${getStatusColor(task.status)}`}>
+                      {task.status}
+                    </span>
+                    <span className={`badge ${getPriorityColor(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                  </div>
+                  
                   {task.description && (
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-gray-500 mb-3">
                       {task.description}
                     </p>
                   )}
-                  <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                  
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-2">
                     <Link
                       to={`/projects/${task.project._id}`}
-                      className="text-primary-600 hover:text-primary-500"
+                      className="text-primary-600 hover:text-primary-500 font-medium"
                     >
                       {task.project.name}
                     </Link>
+                    
+                    {task.assignee && (
+                      <span className="flex items-center gap-1">
+                        <span className="text-gray-400">Assigned to:</span>
+                        <span className="font-medium">{task.assignee.name}</span>
+                      </span>
+                    )}
+                    
                     {task.dueDate && (
-                      <span>
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
+                      <span className="flex items-center gap-1">
+                        <span className="text-gray-400">Due:</span>
+                        <span className="font-medium">
+                          {new Date(task.dueDate).toLocaleDateString()}
+                        </span>
                       </span>
                     )}
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`badge ${getStatusColor(task.status)}`}>
-                    {getStatusText(task.status)}
-                  </span>
+                  
+                  {task.tags && task.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {task.tags.map((tag, index) => (
+                        <span key={index} className="badge badge-outline badge-sm">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {(task.estimatedHours || task.actualHours) && (
+                    <div className="flex items-center gap-4 text-xs text-gray-400">
+                      {task.estimatedHours && (
+                        <span>Est: {task.estimatedHours}h</span>
+                      )}
+                      {task.actualHours && (
+                        <span>Actual: {task.actualHours}h</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

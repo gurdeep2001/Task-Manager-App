@@ -19,7 +19,7 @@ interface Task {
   _id: string
   name: string
   description: string
-  status: 'todo' | 'in_progress' | 'completed'
+  status: 'To Do' | 'In Progress' | 'Done'
   priority: 'Low' | 'Medium' | 'High' | 'Critical'
   dueDate: string
   order: number
@@ -52,8 +52,8 @@ interface TaskCardProps {
 
 // Status color indicators
 const getStatusColor = (status: Task['status'], dueDate?: string) => {
-  if (status === 'completed') return 'bg-green-100 text-green-800'
-  if (status === 'in_progress') return 'bg-blue-100 text-blue-800'
+  if (status === 'Done') return 'bg-green-100 text-green-800'
+  if (status === 'In Progress') return 'bg-blue-100 text-blue-800'
   
   // Check if task is overdue
   if (dueDate && isBefore(new Date(dueDate), startOfDay(new Date()))) {
@@ -136,7 +136,7 @@ export default function TaskCard({ task, userRole, projectId }: TaskCardProps) {
             <div className="flex items-center gap-x-2">
               <h3 className="text-sm font-medium text-gray-900">{task.name}</h3>
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status, task.dueDate)}`}>
-                {getStatusText(task.status)}
+                {task.status}
               </span>
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
                 {task.priority}

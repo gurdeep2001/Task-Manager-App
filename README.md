@@ -291,31 +291,6 @@ Task-Manager-App/
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues or have questions:
-
-1. Check the existing issues in the repository
-2. Create a new issue with detailed information
-3. Contact the maintainers
-
-## 🔮 Future Enhancements
-
-- **Real-time Notifications**: Push notifications for task updates
-- **File Attachments**: Upload and manage files for tasks
-- **Advanced Analytics**: Project and task analytics dashboard
-- **Time Tracking**: Built-in time tracking with reports
-- **Mobile Application**: Native mobile app for iOS and Android
-- **Dark Mode**: Complete dark mode support
-- **Calendar Integration**: Sync with external calendars
-- **Email Notifications**: Email alerts for task updates
-- **API Rate Limiting**: Enhanced API security
-- **Multi-language Support**: Internationalization (i18n)
-
 ## 🎯 Key Achievements
 
 ✅ **Complete User Management System**  

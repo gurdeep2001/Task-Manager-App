@@ -9,30 +9,46 @@ interface Task {
   _id: string
   name: string
   description: string
-  status: 'todo' | 'in_progress' | 'completed'
+  status: 'To Do' | 'In Progress' | 'Done'
+  priority: 'Low' | 'Medium' | 'High' | 'Critical'
   dueDate: string
   order: number
   parentTask: string | null
   subTasks: Task[]
+  assignee?: {
+    _id: string
+    name: string
+    email: string
+  }
+  tags: string[]
+  estimatedHours?: number
+  actualHours?: number
 }
 
 interface EditTaskModalProps {
   isOpen: boolean
   onClose: () => void
   task: Task
+  projectId?: string
 }
 
 interface EditTaskFormData {
   name: string
   description: string
   status: Task['status']
+  priority: Task['priority']
   dueDate: string
+  assigneeId: string
+  tags: string
+  estimatedHours: string
+  actualHours: string
 }
 
 export default function EditTaskModal({
   isOpen,
   onClose,
   task,
+  projectId,
 }: EditTaskModalProps) {
   const queryClient = useQueryClient()
   const [error, setError] = useState('')
@@ -46,17 +62,39 @@ export default function EditTaskModal({
       name: task.name,
       description: task.description,
       status: task.status,
+      priority: task.priority,
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      assigneeId: task.assignee?._id || '',
+      tags: task.tags?.join(', ') || '',
+      estimatedHours: task.estimatedHours?.toString() || '',
+      actualHours: task.actualHours?.toString() || '',
     },
   })
 
   const updateTask = useMutation({
     mutationFn: async (data: EditTaskFormData) => {
-      const response = await axios.patch(`/api/tasks/${task._id}`, data)
-      return response.data
+      const taskData = {
+        ...data,
+        tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
+        estimatedHours: data.estimatedHours ? parseFloat(data.estimatedHours) : undefined,
+        actualHours: data.actualHours ? parseFloat(data.actualHours) : undefined,
+        assigneeId: data.assigneeId || undefined,
+      }
+      
+      if (projectId) {
+        const response = await axios.patch(`/api/projects/${projectId}/tasks/${task._id}`, taskData)
+        return response.data
+      } else {
+        const response = await axios.patch(`/api/tasks/${task._id}`, taskData)
+        return response.data
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', projectId] })
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      }
       onClose()
     },
     onError: (error: any) => {
@@ -162,43 +200,59 @@ export default function EditTaskModal({
                             <textarea
                               id="description"
                               rows={3}
-                              {...register('description', {
-                                required: 'Description is required',
-                              })}
+                              {...register('description')}
                               className="input"
                             />
-                            {errors.description && (
-                              <p className="mt-2 text-sm text-red-600">
-                                {errors.description.message}
-                              </p>
-                            )}
                           </div>
                         </div>
 
-                        <div>
-                          <label
-                            htmlFor="status"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Status
-                          </label>
-                          <div className="mt-1">
-                            <select
-                              id="status"
-                              {...register('status', {
-                                required: 'Status is required',
-                              })}
-                              className="input"
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label
+                              htmlFor="status"
+                              className="block text-sm font-medium text-gray-700"
                             >
-                              <option value="todo">To Do</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                            </select>
-                            {errors.status && (
-                              <p className="mt-2 text-sm text-red-600">
-                                {errors.status.message}
-                              </p>
-                            )}
+                              Status
+                            </label>
+                            <div className="mt-1">
+                              <select
+                                id="status"
+                                {...register('status', {
+                                  required: 'Status is required',
+                                })}
+                                className="input"
+                              >
+                                <option value="To Do">To Do</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Done">Done</option>
+                              </select>
+                              {errors.status && (
+                                <p className="mt-2 text-sm text-red-600">
+                                  {errors.status.message}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="priority"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Priority
+                            </label>
+                            <div className="mt-1">
+                              <select
+                                id="priority"
+                                {...register('priority')}
+                                className="input"
+                              >
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
 
@@ -218,9 +272,69 @@ export default function EditTaskModal({
                             />
                           </div>
                         </div>
+
+                        <div>
+                          <label
+                            htmlFor="tags"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            Tags (comma-separated)
+                          </label>
+                          <div className="mt-1">
+                            <input
+                              type="text"
+                              id="tags"
+                              {...register('tags')}
+                              className="input"
+                              placeholder="bug, frontend, urgent"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label
+                              htmlFor="estimatedHours"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Estimated Hours
+                            </label>
+                            <div className="mt-1">
+                              <input
+                                type="number"
+                                id="estimatedHours"
+                                step="0.5"
+                                min="0"
+                                {...register('estimatedHours')}
+                                className="input"
+                                placeholder="8"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="actualHours"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Actual Hours
+                            </label>
+                            <div className="mt-1">
+                              <input
+                                type="number"
+                                id="actualHours"
+                                step="0.5"
+                                min="0"
+                                {...register('actualHours')}
+                                className="input"
+                                placeholder="6"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="mt-6 flex justify-end gap-x-3">
+                      <div className="mt-6 flex justify-end space-x-3">
                         <button
                           type="button"
                           onClick={onClose}
@@ -230,10 +344,10 @@ export default function EditTaskModal({
                         </button>
                         <button
                           type="submit"
-                          disabled={isSubmitting}
                           className="btn btn-primary"
+                          disabled={isSubmitting}
                         >
-                          {isSubmitting ? 'Saving...' : 'Save Changes'}
+                          {isSubmitting ? 'Updating...' : 'Update Task'}
                         </button>
                       </div>
                     </form>
