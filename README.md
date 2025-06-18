@@ -215,28 +215,6 @@ Task-Manager-App/
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues or have questions:
-
-1. Check the existing issues in the repository
-2. Create a new issue with detailed information
-3. Contact the maintainers
-
-## 🔮 Future Enhancements
-
-- Real-time notifications
-- File attachments for tasks
-- Advanced filtering and search
-- Task comments and discussions
-- Time tracking
-- Mobile application
-- Dark mode support
-
 ---
 
 **Happy Task Managing! 🎉** 
