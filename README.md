@@ -89,7 +89,7 @@ Before running this application, make sure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/gurdeep2001/Task-Manager-App.git
 cd Task-Manager-App
 ```
 
@@ -291,6 +291,7 @@ Task-Manager-App/
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+<<<<<<< HEAD
 ## 🎯 Key Achievements
 
 ✅ **Complete User Management System**  
@@ -304,6 +305,8 @@ Task-Manager-App/
 ✅ **Performance Optimized**  
 ✅ **Production Ready**
 
+=======
+>>>>>>> 8fd61224eac0842db4f582994004131462a8384a
 ---
 
 **Happy Task Managing! 🎉** 
